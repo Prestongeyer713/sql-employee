@@ -1,7 +1,7 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
-const consoleTable = require("console.table");
-const promisemysql = require("promise-mysql");
+require('console.table');
+
 
 
 const promptMessages = {
@@ -32,60 +32,41 @@ connection.connect(function(err) {
   });
 
   
-function mainMenu() {
+  function mainMenu() {
     inquirer
-        .prompt({
-            name: 'action',
-            type: 'list',
-            message: 'What would you like to do?',
-            choices: [
-                promptMessages.viewAllEmployees,
-                promptMessages.viewByDepartment,
-                promptMessages.viewByManager,
-                promptMessages.viewAllRoles,
-                promptMessages.addEmployee,
-                promptMessages.removeEmployee,
-                promptMessages.updateRole,
-                promptMessages.exit
-            ]
-        })
-        .then(answer => {
-            console.log('answer', answer);
-            switch (answer.action) {
-                case promptMessages.viewAllEmployees:
-                    viewAllEmp();
-                    break;
-
-                case promptMessages.viewByDepartment:
-                    viewByDepartment();
-                    break;
-
-                case promptMessages.viewByManager:
-                    viewByManager();
-                    break;
-
-                case promptMessages.addEmployee:
-                    addEmployee();
-                    break;
-
-                case promptMessages.removeEmployee:
-                    remove('delete');
-                    break;
-
-                case promptMessages.updateRole:
-                    remove('role');
-                    break;
-
-                case promptMessages.viewAllRoles:
-                    viewAllRoles();
-                    break;
-
-                case promptMessages.exit:
-                    connection.end();
-                    break;
-            }
-        });
-}
+      .prompt({
+        name: "action",
+        type: "list",
+        message: "What would you like to do?",
+        choices: [
+            "View all departments",
+            "View all roles",
+            "View all employees",
+            "Add a department",
+            "Add an employee",
+            "View by manager",
+            "Exit"
+        ]
+      })
+    .then(function(answer) {
+        if (answer.action === 'View all departments') {
+            viewByDepartment();
+        } else if (answer.action === 'View all roles') {
+            viewAllRoles();
+        } else if (answer.action === 'View all employees') {
+            viewAllEmp();
+        } else if (answer.action === 'Add a department') {
+            addDepartment();
+        } else if (answer.action === 'Add an employee') {
+            addEmployee();
+        } else if (answer.action === 'View By Manager') {
+            viewByManager();
+        }
+        else if (answer.action === 'Exit') {
+            connection.end();
+        }
+    })
+    }
 function viewAllEmp() {
     var query = "SELECT * FROM employee";
         connection.query(query, function(err, res) {
@@ -214,127 +195,6 @@ function addEmployee(){
             });
     });
 }
-function remove(){
-
-    let departmentArr = [];
-
-    promisemysql.createConnection(connectionProperties)
-    .then((conn) => {
-
-        return conn.query('SELECT id, name FROM department ORDER BY name ASC');
-
-    }).then((departments) => {
-        
-        for (i=0; i < departments.length; i++){
-            departmentArr.push(departments[i].name);
-        }
-
-        return departments;
-    }).then((departments) => {
-        
-        inquirer.prompt([
-            {
-                name: "roleTitle",
-                type: "input",
-                message: "Role title: "
-            },
-            {
-                name: "salary",
-                type: "number",
-                message: "Salary: "
-            },
-            {   
-                name: "dept",
-                type: "list",
-                message: "Department: ",
-                choices: departmentArr
-            }]).then((answer) => {
-
-                let deptID;
-
-                for (i=0; i < departments.length; i++){
-                    if (answer.dept == departments[i].name){
-                        deptID = departments[i].id;
-                    }
-                }
-
-                connection.query(`INSERT INTO role (title, salary, department_id)
-                VALUES ("${answer.roleTitle}", ${answer.salary}, ${deptID})`, (err, res) => {
-                    if(err) return err;
-                    console.log(`\n ROLE ${answer.roleTitle} ADDED...\n`);
-                    mainMenu();
-                });
-
-            });
-
-    });
-    
-}
-
-
-function remove(){
-
-    let employeeArr = [];
-    let roleArr = [];
-
-    promisemysql.createConnection(connectionProperties
-    ).then((conn) => {
-        return Promise.all([
-
-            conn.query('SELECT id, title FROM role ORDER BY title ASC'), 
-            conn.query("SELECT employee.id, concat(employee.first_name, ' ' ,  employee.last_name) AS Employee FROM employee ORDER BY Employee ASC")
-        ]);
-    }).then(([roles, employees]) => {
-
-        for (i=0; i < roles.length; i++){
-            roleArr.push(roles[i].title);
-        }
-
-        for (i=0; i < employees.length; i++){
-            employeeArr.push(employees[i].Employee);
-        }
-
-        return Promise.all([roles, employees]);
-    }).then(([roles, employees]) => {
-
-        inquirer.prompt([
-            {
-                name: "employee",
-                type: "list",
-                message: "Who would you like to edit?",
-                choices: employeeArr
-            }, {
-                name: "role",
-                type: "list",
-                message: "What is their new role?",
-                choices: roleArr
-            },]).then((answer) => {
-
-                let roleID;
-                let employeeID;
-
-                for (i=0; i < roles.length; i++){
-                    if (answer.role == roles[i].title){
-                        roleID = roles[i].id;
-                    }
-                }
-                for (i=0; i < employees.length; i++){
-                    if (answer.employee == employees[i].Employee){
-                        employeeID = employees[i].id;
-                    }
-                }
-
-                connection.query(`UPDATE employee SET role_id = ${roleID} WHERE id = ${employeeID}`, (err, res) => {
-                    if(err) return err;
-                    console.log(`\n ${answer.employee} ROLE UPDATED TO ${answer.role}...\n `);
-
-                    mainMenu();
-                });
-            });
-    });
-    
-}
-
 
 function viewByManager() {
     const query = `SELECT CONCAT(manager.first_name, ' ', manager.last_name) AS manager, department.name AS department, employee.id, employee.first_name, employee.last_name, role.title
